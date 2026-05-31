@@ -13,7 +13,7 @@
 
 - name: Install netdata
   ansible.builtin.command:
-    cmd: bash /tmp/netdata-kickstart.sh --stable-channel --disable-telemetry --non-interactive --install-type any
+    cmd: bash /tmp/netdata-kickstart.sh --stable-channel --disable-telemetry --non-interactive --install-type static
   when: not netdata_binary.stat.exists
   changed_when: true
 
