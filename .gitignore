@@ -1,0 +1,13 @@
+.vault_pass
+*.vault_pass
+**/vars/secrets.yml
+**/vars/vault.yml
+*.retry
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
