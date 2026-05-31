@@ -1,0 +1,20 @@
+---
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - netdata_stream_api_key | length > 0
+      - netdata_role in ['parent', 'child']
+    fail_msg: >
+      netdata_stream_api_key must be set and netdata_role must be
+      either 'parent' or 'child'. Check your inventory or group_vars.
+
+- name: Include install tasks
+  ansible.builtin.include_tasks: install.yml
+
+- name: Configure as parent
+  ansible.builtin.include_tasks: parent.yml
+  when: netdata_role == 'parent'
+
+- name: Configure as child
+  ansible.builtin.include_tasks: child.yml
+  when: netdata_role == 'child'
