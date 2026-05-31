@@ -1,0 +1,27 @@
+---
+# Role assignment - overridden per group in the playbook
+netdata_role: child
+
+# Stream configuration
+netdata_stream_api_key: ""
+netdata_parent_host: ""
+netdata_parent_port: 19999
+
+# Child configuration
+# mode = none drops local DB entirely, ships everything to parent
+# Reduces RAM usage on child nodes significantly
+netdata_child_memory_mode: none
+
+# Parent configuration
+# dbengine = compressed, tiered, on-disk storage
+# Tier 0: full resolution (~24h)
+# Tier 1: 1 minute resolution (~30d)
+# Tier 2: 1 hour resolution (~1yr)
+netdata_parent_memory_mode: dbengine
+netdata_parent_disk_space_mb: 2048
+netdata_parent_tier1_disk_space_mb: 1024
+netdata_parent_tier2_disk_space_mb: 512
+
+# Restrict which IPs can stream to the parent
+# Tighten to your LAN in production
+netdata_allow_from: "10.0.0.0/8 192.168.0.0/16 172.16.0.0/12"
