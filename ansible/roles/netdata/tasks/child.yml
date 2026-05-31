@@ -2,7 +2,7 @@
 - name: Template child stream.conf
   ansible.builtin.template:
     src: stream-child.conf.j2
-    dest: /etc/netdata/stream.conf
+    dest: "{{ netdata_config_dir }}/stream.conf"
     owner: netdata
     group: netdata
     mode: '0640'
@@ -11,7 +11,7 @@
 - name: Template child netdata.conf
   ansible.builtin.template:
     src: netdata-child.conf.j2
-    dest: /etc/netdata/netdata.conf
+    dest: "{{ netdata_config_dir }}/netdata.conf"
     owner: netdata
     group: netdata
     mode: '0644'
