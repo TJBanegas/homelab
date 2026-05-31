@@ -1,0 +1,25 @@
+---
+- name: Bootstrap Python on all managed hosts
+  hosts: all
+  become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Install Python3 if missing
+      ansible.builtin.raw: apt-get install -y python3
+      changed_when: false
+
+- name: Configure netdata parent nodes
+  hosts: netdata_parents
+  become: true
+  roles:
+    - role: netdata
+      vars:
+        netdata_role: parent
+
+- name: Configure netdata child nodes
+  hosts: netdata_children
+  become: true
+  roles:
+    - role: netdata
+      vars:
+        netdata_role: child
