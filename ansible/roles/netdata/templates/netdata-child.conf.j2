@@ -1,0 +1,12 @@
+# Managed by Ansible - do not edit manually
+# Changes will be overwritten on next playbook run
+
+[global]
+    hostname = {{ inventory_hostname }}
+    run as user = netdata
+
+[db]
+    mode = {{ netdata_child_memory_mode }}
+
+[web]
+    mode = none

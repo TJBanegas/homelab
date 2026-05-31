@@ -1,0 +1,13 @@
+# Managed by Ansible - do not edit manually
+# Changes will be overwritten on next playbook run
+
+[stream]
+    enabled = yes
+    destination = {{ netdata_parent_host }}:{{ netdata_parent_port }}
+    api key = {{ netdata_stream_api_key }}
+    timeout seconds = 60
+    default port = 19999
+    send charts matching = *
+    buffer size bytes = 1048576
+    reconnect delay seconds = 5
+    initial clock resync iterations = 60

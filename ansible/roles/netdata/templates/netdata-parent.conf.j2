@@ -1,0 +1,16 @@
+# Managed by Ansible - do not edit manually
+# Changes will be overwritten on next playbook run
+
+[global]
+    hostname = {{ inventory_hostname }}
+    run as user = netdata
+
+[db]
+    mode = {{ netdata_parent_memory_mode }}
+    storage tiers = 3
+    dbengine multihost disk space MB = {{ netdata_parent_disk_space_mb }}
+    dbengine tier 1 multihost disk space MB = {{ netdata_parent_tier1_disk_space_mb }}
+    dbengine tier 2 multihost disk space MB = {{ netdata_parent_tier2_disk_space_mb }}
+
+[web]
+    bind to = 0.0.0.0

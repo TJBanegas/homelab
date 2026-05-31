@@ -1,0 +1,11 @@
+# Managed by Ansible - do not edit manually
+# Changes will be overwritten on next playbook run
+
+[{{ netdata_stream_api_key }}]
+    enabled = yes
+    allow from = {{ netdata_allow_from }}
+    default history = 3600
+    default memory mode = {{ netdata_parent_memory_mode }}
+    health enabled by default = auto
+    default postpone alarms on connect seconds = 60
+    multiple connections = allow
