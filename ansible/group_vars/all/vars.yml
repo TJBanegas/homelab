@@ -1,2 +1,3 @@
 ---
 netdata_stream_api_key: "{{ vault_netdata_stream_api_key }}"
+netdata_stream_api_key_pihole: "{{ vault_netdata_stream_api_key_pihole }}"
