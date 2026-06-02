@@ -6,7 +6,7 @@
 
 [{{ netdata_stream_api_key }}]
     enabled = yes
-    allow from = {{ netdata_allow_from }}
+    allow from = *
     default history = 3600
     default memory mode = {{ netdata_parent_memory_mode }}
     health enabled by default = auto
@@ -15,7 +15,7 @@
 
 [{{ netdata_stream_api_key_pihole }}]
     enabled = yes
-    allow from = {{ netdata_allow_from }}
+    allow from = *
     default history = 3600
     default memory mode = {{ netdata_parent_memory_mode }}
     health enabled by default = auto
