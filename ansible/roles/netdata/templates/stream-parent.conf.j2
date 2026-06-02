@@ -1,6 +1,9 @@
 # Managed by Ansible - do not edit manually
 # Changes will be overwritten on next playbook run
 
+[stream]
+    enabled = no
+
 [{{ netdata_stream_api_key }}]
     enabled = yes
     allow from = {{ netdata_allow_from }}
