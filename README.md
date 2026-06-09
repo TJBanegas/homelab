@@ -16,7 +16,9 @@ are as important as the working result.
 ---
 
 ## Architecture
-─────────────────────────────────────────────────────┐
+
+```
+┌─────────────────────────────────────────────────────┐
 │                   HP Z2 Mini G5                     │
 │                  Proxmox VE 8.x                     │
 │                                                     │
@@ -33,7 +35,15 @@ are as important as the working result.
 │                                                     │
 │  Netdata (child) · NUT · Tailscale                  │
 └─────────────────────────────────────────────────────┘
-│
+                        │
+              Tailscale Overlay Network
+                        │
+    ┌──────────────────────────────────────┐
+    │        Ubuntu 24.04 VM               │
+    │     Ansible Control Node             │
+    │   (ubuntu-ansiblehost)               │
+    └──────────────────────────────────────┘
+```
 Tailscale Overlay Network
 │
 ┌──────────────────────────────────────┐
@@ -228,22 +238,24 @@ device, vulnerable IoT device, etc.).
 ---
 
 ## Repository Structure
+
+```
 homelab/
 ├── ansible/
-│   ├── ansible.cfg              # Vault password path, inventory defaults
-│   ├── site.yml                 # Main playbook
+│   ├── ansible.cfg
+│   ├── site.yml
 │   ├── inventory/
-│   │   └── hosts.yml            # Host definitions, group assignments
+│   │   └── hosts.yml
 │   ├── group_vars/
 │   │   └── all/
-│   │       ├── vars.yml         # Variable references (plaintext)
-│   │       └── vault.yml        # Encrypted secrets (ansible-vault)
+│   │       ├── vars.yml
+│   │       └── vault.yml
 │   └── roles/
 │       └── netdata/
 │           ├── defaults/main.yml
 │           ├── tasks/
-│           │   ├── main.yml     # Validation and dispatch
-│           │   ├── install.yml  # Idempotent install with path detection
+│           │   ├── main.yml
+│           │   ├── install.yml
 │           │   ├── parent.yml
 │           │   └── child.yml
 │           ├── templates/
@@ -256,6 +268,7 @@ homelab/
 ├── networking/
 ├── infrastructure/
 └── docs/
+```
 
 ---
 
