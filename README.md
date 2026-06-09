@@ -1,4 +1,5 @@
 # homelab
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-TJ%20Banegas-0077B5?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/YOUR-LINKEDIN-URL)
 # Homelab Infrastructure
 
 A self-hosted homelab running on Proxmox VE, built with two explicit goals: replacing
