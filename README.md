@@ -44,6 +44,8 @@ are as important as the working result.
     │   (ubuntu-ansiblehost)               │
     └──────────────────────────────────────┘
 ```
+---
+
 Tailscale Overlay Network
 │
 ┌──────────────────────────────────────┐
