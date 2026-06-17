@@ -321,3 +321,136 @@ Documenting this is as useful as documenting what worked:
 | NAS (incoming) | UGREEN DXP4800 Plus |
 | UPS | CyberPower CP750SL 750VA Slimline |
 | Network | Consumer router (pfSense replacement planned) |
+
+Homelab
+
+A self-hosted infrastructure lab built on bare-metal Proxmox VE, purpose-built to develop practical systems administration skills and eliminate dependency on third-party cloud services for personal data.
+
+Goals: Resume-grade infrastructure practice · Zero-trust networking · Data sovereignty · Automation-first operations
+
+
+Architecture Overview
+
+HP Z2 Mini G5 (Proxmox VE 8.x)
+├── docker-host VM (Ubuntu 24.04)
+│   ├── Portainer CE
+│   ├── Netdata (parent node)
+│   ├── Uptime Kuma
+│   └── signal-cli-rest-api
+├── pihole LXC (Ubuntu 25.04)
+│   ├── Pi-hole
+│   └── Unbound (port 5335)
+└── ubuntu-ansiblehost VM (Ubuntu 24.04)
+    └── Ansible control node
+
+Remote Access: Tailscale (zero-trust, no exposed ports)
+Tailnet: tyrannosaurus-byzantine.ts.net
+UPS: CyberPower CP750SL → NUT
+
+
+Infrastructure
+
+Hypervisor
+
+
+Proxmox VE 8.x on HP Z2 Mini G5 (bare-metal)
+VMs provisioned via cloud-init for repeatable, unattended deployments
+Snapshots at working baselines before major changes
+SSH hardened: root login disabled, key-only auth, TOTP 2FA on web UI
+
+
+Networking & DNS
+
+
+Tailscale for all remote access — MagicDNS enabled, ACLs tightened, zero internet-exposed ports
+Pi-hole + Unbound co-located in a single LXC for network-wide ad blocking and recursive DNS (no upstream provider)
+UFW default-deny on all hosts; explicit allowances for LAN (192.168.1.0/24) and Tailscale (100.64.0.0/10)
+
+
+Monitoring & Alerting
+
+
+Netdata parent-child streaming: Proxmox host and Docker workloads report to a centralized parent on docker-host
+Uptime Kuma for service availability monitoring
+Signal notifications via self-hosted signal-cli-rest-api (no third-party alerting dependency)
+
+
+Automation
+
+
+Ansible control node with role-based playbooks and ansible-vault for secrets management
+Roles built for: Netdata parent/child deployment
+Cloud-init templates for repeatable VM provisioning
+
+
+UPS & Power
+
+
+CyberPower CP750SL managed via NUT (Network UPS Tools)
+Configured for graceful host shutdown on power loss
+
+
+
+Security Hardening (Applied Across All Hosts)
+
+ControlImplementationSSH hardeningRoot login disabled, password auth disabled, key-onlyPatch managementunattended-upgrades on all Ubuntu hostsHost firewallUFW default-deny, explicit LAN + Tailscale rulesDocker + UFWiptables: false in daemon.json to prevent bypassWeb UI authTOTP 2FA on Proxmox, Tailscale-issued TLS certs on PortainerRemote accessExclusively Tailscale — no VPN ports, no port forwarding
+
+
+Planned / In Progress
+
+ProjectStatusNotespfSense with VLAN segmentationBlockedRequires managed switch (TP-Link TL-SG108E)TrueNAS Scale NASPlannedUGREEN DXP4800 Plus, 4× 10TB RAID-Z2, 3-2-1 backup targetImmich (self-hosted photos)PlannedFirst Docker stack after NASNextcloudPlannedAfter ImmichCaddy reverse proxyPlannedTLS termination for internal servicesGrafana + PrometheusPlannedObservability layer upgradeAzure: Sentinel SIEM + Defender for CloudPlannedCloud security resume trackWazuh SIEMPlannedOn-prem security event pipeline
+
+
+Key Lessons Learned
+
+Documenting real problems encountered and resolved — the kind of thing that actually comes up in interviews.
+
+Netdata v2 streaming (undocumented breaking changes)
+
+
+Parent requires [stream] enabled = no globally or the receiver never initializes
+CIDR notation in allow from silently fails — must use *
+Static builds on Ubuntu 25.04 install to /opt/netdata/etc/netdata/, not /etc/netdata/
+Each child node requires a unique API key — shared keys cause silent 404 rejections
+
+
+Docker + UFW
+
+
+Docker bypasses UFW iptables rules by default; fixed by setting {"iptables": false} in /etc/docker/daemon.json
+
+
+LXC + Tailscale
+
+
+Requires manual TUN device passthrough in /etc/pve/lxc/<ctid>.conf
+
+
+Proxmox noVNC
+
+
+Shift key unreliability is a known bug; SSH is the correct solution; cloud-init avoids the console for VM creation entirely
+
+
+Pi-hole on unprivileged LXC
+
+
+Cannot set system clock; must disable Pi-hole's internal NTP sync
+
+
+Uptime Kuma + Signal
+
+
+URL field requires the full endpoint path (/v2/send), not the base URL — diagnosed via docker logs
+
+
+
+Stack Reference
+
+LayerToolHypervisorProxmox VE 8.xOS (VMs/LXC)Ubuntu 24.04 LTS, Ubuntu 25.04ContainersDocker Engine, Docker Compose, Portainer CENetworkingTailscale, Pi-hole, Unbound, UFWMonitoringNetdata, Uptime KumaAlertingsignal-cli-rest-api (Signal)AutomationAnsible, ansible-vault, cloud-initUPSNUT (Network UPS Tools)HardwareHP Z2 Mini G5, CyberPower CP750SL
+
+
+Connect
+
+
+LinkedIn: linkedin.com/in/tjbanegas
