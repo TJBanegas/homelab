@@ -20,22 +20,22 @@ This repository documents the infrastructure as code, configuration, and design 
 │  │   Ubuntu 24.04 VM   │  │   Ubuntu 25.04 LXC   │  │
 │  │    (docker-host)    │  │      (pihole)        │  │
 │  │                     │  │                      │  │
-│  │  Docker Engine      │  │  Pi-hole v6          │  │
-│  │  Portainer CE       │  │  Unbound             │  │
-│  │  Uptime Kuma        │  │  Tailscale           │  │
-│  │  Signal CLI API     │  │  Netdata (child)     │  │
-│  │  Netdata (parent)   │  └──────────────────────┘  │
+│  │   Docker Engine     │  │   Pi-hole v6         │  │
+│  │   Portainer CE      │  │   Unbound            │  │
+│  │   Uptime Kuma       │  │   Tailscale          │  │
+│  │   Signal CLI API    │  │   Netdata (child)    │  │
+│  │   Netdata (parent)  │  └──────────────────────┘  │
 │  └─────────────────────┘                            │
 │                                                     │
-│  Netdata (child) · NUT · Tailscale                  │
+│     Netdata (child) · NUT · Tailscale               │
 └─────────────────────────────────────────────────────┘
                         │
               Tailscale Overlay Network
                         │
     ┌──────────────────────────────────────┐
-    │        Ubuntu 24.04 VM               │
-    │     Ansible Control Node             │
-    │   (ubuntu-ansiblehost)               │
+    │         Ubuntu 24.04 VM              │
+    │       Ansible Control Node           │
+    │       (ubuntu-ansiblehost)            │
     └──────────────────────────────────────┘
 ```
 
