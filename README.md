@@ -35,7 +35,7 @@ This repository documents the infrastructure as code, configuration, and design 
     ┌──────────────────────────────────────┐
     │         Ubuntu 24.04 VM              │
     │       Ansible Control Node           │
-    │       (ubuntu-ansiblehost)            │
+    │       (ubuntu-ansiblehost)           │
     └──────────────────────────────────────┘
 ```
 
