@@ -1,11 +1,11 @@
 # Homelab
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-TJ%20Banegas-0077B5?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/tjbanegas)
 
-A self-hosted homelab running on Proxmox VE, built with two explicit goals: replacing commercial cloud services with privacy-respecting self-hosted alternatives, and developing hands-on infrastructure skills across Linux administration, networking, security hardening, observability, and automation.
+A self-hosted homelab running on Proxmox VE. The two main goals are replacing big-tech cloud services with self-hosted alternatives, and building real infrastructure skills I can use professionally.
 
-This repository documents the infrastructure as code, configuration, and design decisions behind the lab. Every decision — including the tradeoffs and the things that broke — is documented here intentionally. The troubleshooting and reasoning are as important as the working result.
+Everything here is documented on purpose. That includes the design decisions, the tradeoffs, and the stuff that broke. The troubleshooting is just as valuable as the end result.
 
-**Current trajectory:** IT/Systems Administration → Cloud Security / DevSecOps / GRC
+**Career direction:** IT/Systems Administration → Cloud Security / DevSecOps / GRC
 
 ---
 
@@ -20,26 +20,26 @@ This repository documents the infrastructure as code, configuration, and design 
 │  │   Ubuntu 24.04 VM   │  │   Ubuntu 25.04 LXC   │  │
 │  │    (docker-host)    │  │      (pihole)        │  │
 │  │                     │  │                      │  │
-│  │   Docker Engine     │  │   Pi-hole v6         │  │
-│  │   Portainer CE      │  │   Unbound            │  │
-│  │   Uptime Kuma       │  │   Tailscale          │  │
-│  │   Signal CLI API    │  │   Netdata (child)    │  │
-│  │   Netdata (parent)  │  └──────────────────────┘  │
+│  │  Docker Engine      │  │  Pi-hole v6          │  │
+│  │  Portainer CE       │  │  Unbound             │  │
+│  │  Uptime Kuma        │  │  Tailscale           │  │
+│  │  Signal CLI API     │  │  Netdata (child)     │  │
+│  │  Netdata (parent)   │  └──────────────────────┘  │
 │  └─────────────────────┘                            │
 │                                                     │
-│     Netdata (child) · NUT · Tailscale               │
+│  Netdata (child) · NUT · Tailscale                  │
 └─────────────────────────────────────────────────────┘
                         │
               Tailscale Overlay Network
                         │
-    ┌──────────────────────────────────────┐
-    │         Ubuntu 24.04 VM              │
-    │       Ansible Control Node           │
-    │       (ubuntu-ansiblehost)           │
-    └──────────────────────────────────────┘
+      ┌──────────────────────────────────────┐
+      │        Ubuntu 24.04 VM               │
+      │     Ansible Control Node             │
+      │   (ubuntu-ansiblehost)               │
+      └──────────────────────────────────────┘
 ```
 
-All remote access routes exclusively through Tailscale. No ports are forwarded from the internet to any host.
+All remote access goes through Tailscale. No ports are forwarded from the internet to any host.
 
 ---
 
@@ -47,15 +47,15 @@ All remote access routes exclusively through Tailscale. No ports are forwarded f
 
 | Category | Technology | Notes |
 |---|---|---|
-| Hypervisor | Proxmox VE 8.x | Type-1 hypervisor; VMs and LXC containers |
-| DNS | Pi-hole v6 + Unbound | Ad blocking + recursive resolution from root servers |
-| Containers | Docker Engine + Portainer CE | Container runtime with web management UI |
+| Hypervisor | Proxmox VE 8.x | Type-1 hypervisor; runs VMs and LXC containers |
+| DNS | Pi-hole v6 + Unbound | Ad blocking + recursive DNS from root servers |
+| Containers | Docker Engine + Portainer CE | Container runtime with a web UI |
 | Monitoring | Netdata v2 (parent/child streaming) | Centralized metrics; children stream to parent |
-| Alerting | Uptime Kuma + Signal CLI REST API | E2E encrypted notifications, no third-party relay |
-| Automation | Ansible + ansible-vault | IaC for reproducible deployments; secrets encrypted at rest |
-| Networking | Tailscale (MagicDNS, ACLs) | Zero-trust overlay; replaces VPN |
+| Alerting | Uptime Kuma + Signal CLI REST API | End-to-end encrypted notifications, no third-party relay |
+| Automation | Ansible + ansible-vault | Reproducible deployments with secrets encrypted at rest |
+| Networking | Tailscale (MagicDNS, ACLs) | Zero-trust overlay network |
 | Power | NUT (Network UPS Tools) | Graceful shutdown on UPS battery low |
-| OS | Ubuntu 24.04 LTS, Ubuntu 25.04, Debian 12 | Mixed environment across VMs and containers |
+| OS | Ubuntu 24.04 LTS, Ubuntu 25.04, Debian 12 | Mixed across VMs and containers |
 | Firewall | UFW | Default-deny on all Ubuntu hosts |
 
 ---
@@ -64,111 +64,107 @@ All remote access routes exclusively through Tailscale. No ports are forwarded f
 
 ### DNS: Pi-hole + Unbound
 
-Pi-hole handles network-wide DNS filtering and ad blocking. Unbound runs as a recursive resolver, eliminating dependency on upstream DNS providers. DNS queries resolve directly from root servers rather than passing through Google (8.8.8.8), Cloudflare (1.1.1.1), or the ISP's resolver.
+Pi-hole handles network-wide DNS filtering and ad blocking. Unbound sits behind it as a recursive resolver, so DNS queries go straight to root servers instead of passing through Google (8.8.8.8), Cloudflare (1.1.1.1), or my ISP.
 
-**Design decision:** Pi-hole and Unbound are co-located in a single LXC container. Unbound listens on `127.0.0.1:5335`; Pi-hole forwards upstream queries to it. This avoids the overhead of container-to-container networking for what is effectively a local IPC call, and reduces the attack surface compared to running Unbound on an exposed port.
+**Why co-locate them in one LXC?** Running both in the same container means Pi-hole talks to Unbound over localhost (port 5335) instead of across the network. It's simpler, lower overhead, and there's no reason to expose Unbound on a network-accessible port.
 
-**Privacy rationale:** Upstream DNS providers log queries and associate them with IP addresses. Recursive resolution means no single provider sees the full query history.
+**Why not just use a public DNS provider?** Upstream resolvers log your queries and tie them to your IP. Recursive resolution means no single provider sees your full DNS history.
 
 ---
 
 ### Monitoring: Netdata Parent/Child Streaming
 
-Netdata deployed in a parent/child streaming architecture:
+Netdata runs in a parent/child setup:
 
-- **Parent** (docker-host): receives and stores metrics from all nodes, serves the unified dashboard. Configured with tiered dbengine storage: full resolution for 24h, 1-minute resolution for 30 days, 1-hour resolution for ~1 year.
-- **Children** (proxmox, pihole): collect and stream metrics to parent. `memory mode = none` — no local storage, metrics ship directly to parent. Reduces per-host RAM footprint by approximately 70%.
+- **Parent** (docker-host): collects and stores metrics from all nodes, serves the unified dashboard. Storage is tiered: full resolution for 24 hours, 1-minute resolution for 30 days, 1-hour resolution for about a year.
+- **Children** (proxmox, pihole): collect metrics locally and stream them to the parent. Local storage is disabled (`memory mode = none`), which cuts per-host RAM usage by around 70%.
 
-**Design decision:** Self-hosted streaming over Netdata Cloud. Netdata Cloud routes metrics through Netdata Inc's infrastructure. Keeping telemetry on-premises means no third party has visibility into infrastructure performance data or potential indicators of what services are running.
+**Why not use Netdata Cloud?** Netdata Cloud routes your metrics through Netdata's own infrastructure. Keeping everything on-prem means no third party has visibility into my system performance data.
 
-**Troubleshooting log (Netdata v2 undocumented behavior):**
-These issues were found through debugging, not documentation:
-- Parent requires a `[stream] enabled = no` global section in stream.conf or the streaming receiver does not initialize, even with valid API key sections present
-- CIDR notation in `allow from` (e.g. `192.168.0.0/16`) silently fails in v2; wildcard `*` or specific IPs required
-- Static builds on Ubuntu 25.04 install to `/opt/netdata/etc/netdata/` not `/etc/netdata/` — config path detection must be dynamic
-- Each child requires a unique API key in v2; shared keys cause silent connection rejections with no useful error message
-- `--install-type static` required for Ubuntu 25.04 as the native package repository does not yet carry the distro
+**Bugs I hit in Netdata v2 (none of these were in the docs):**
+- The parent needs a `[stream] enabled = no` global section in stream.conf or the streaming receiver never starts, even if the API key config looks correct
+- CIDR notation in `allow from` (like `192.168.0.0/16`) silently fails; you need a wildcard `*` or a specific IP
+- Static builds on Ubuntu 25.04 install to `/opt/netdata/etc/netdata/`, not `/etc/netdata/`; the config path has to be detected dynamically
+- Each child needs its own unique API key; shared keys cause silent rejections with no useful error output
+- Ubuntu 25.04 requires `--install-type static` because the distro isn't in the native package repo yet
 
-These findings are codified in the Ansible role's dynamic config path detection and per-host key assignment.
+All of this is now handled in the Ansible role.
 
 ---
 
 ### Alerting: Uptime Kuma + Signal
 
-Uptime Kuma monitors service health across the stack:
-- Proxmox web UI: HTTPS keyword check (confirms login page is served, not just that the port is open)
-- Pi-hole DNS: actual DNS query resolution against the Pi-hole resolver — detects pihole-FTL crashes that a ping monitor would miss
-- Docker containers: Docker socket integration for container state monitoring
-- Signal CLI API: Docker container health check
+Uptime Kuma monitors the stack with checks that actually test functionality, not just connectivity:
 
-Alerts delivered via Signal through a self-hosted `signal-cli-rest-api` bridge. The bridge is linked as a secondary device to an existing Signal account — no new phone number required, no third-party relay, messages are end-to-end encrypted.
+- Proxmox web UI: HTTPS keyword check (confirms the login page loads, not just that the port is open)
+- Pi-hole DNS: sends a real DNS query to the resolver; catches pihole-FTL crashes that a ping check would miss
+- Docker containers: monitors container state via the Docker socket
+- Signal CLI API: container health check
 
-**Alerting design consideration:** both the monitoring system (Kuma) and the notification path (Signal API) run on the same host. If that host goes down, alerts cannot be delivered. This circular dependency is a known limitation for homelab single-host setups. An external watchdog (e.g. Healthchecks.io with a Kuma heartbeat monitor) closes this gap and is on the roadmap.
+Alerts go out through a self-hosted `signal-cli-rest-api` container. It's linked as a secondary device on an existing Signal account, so no new phone number is needed and nothing routes through a third-party relay.
+
+**Known limitation:** Kuma and the Signal API both run on docker-host. If that host goes down, alerts stop working. The fix is an external heartbeat monitor (like Healthchecks.io) that pages out if it stops hearing from Kuma. That's on the roadmap.
 
 ---
 
 ### Automation: Ansible Role
 
-An Ansible role manages Netdata installation and configuration across all hosts.
+Ansible manages Netdata deployment across all hosts.
 
-**Role capabilities:**
-- Installs Netdata via official kickstart script with idempotency guard (stat check on binary path prevents re-install on existing hosts)
-- Detects config directory dynamically — handles both native installs (`/etc/netdata/`) and static builds (`/opt/netdata/etc/netdata/`)
-- Templates `stream.conf` and `netdata.conf` per role assignment (parent or child) using Jinja2; `inventory_hostname` resolves correctly per host
-- API keys encrypted with ansible-vault; plaintext secrets never committed to git
-- `--install-type static` flag handles Ubuntu 25.04 package gap
-- Handler-based restarts: Netdata only restarts when config actually changes, not on every playbook run
+**What the role does:**
+- Installs Netdata via the official kickstart script with an idempotency check (skips reinstall if the binary already exists)
+- Detects the config directory dynamically to handle both native (`/etc/netdata/`) and static (`/opt/netdata/etc/netdata/`) installs
+- Templates `stream.conf` and `netdata.conf` per host using Jinja2
+- Encrypts API keys with ansible-vault; no plaintext secrets ever hit git
+- Passes `--install-type static` for Ubuntu 25.04
+- Uses handlers so Netdata only restarts when config actually changes
 
-**Secrets management:** ansible-vault encrypts the API key at rest. The vault password lives in `~/.vault_pass` on the control node only, excluded from git via `.gitignore`. The repository is safe to make public.
+**Secrets:** The vault password lives in `~/.vault_pass` on the control node only and is excluded from git via `.gitignore`. The repo is safe to make public.
 
 ---
 
 ### Power Management: NUT
 
-CyberPower 750VA Slimline UPS connected to the Proxmox host via USB. NUT monitors battery state and triggers a graceful shutdown of the hypervisor before battery exhaustion, preventing filesystem corruption from hard power loss.
+A CyberPower 750VA UPS is connected to the Proxmox host via USB. NUT watches battery state and triggers a graceful hypervisor shutdown before the battery runs out, which prevents filesystem corruption from a hard power cut.
 
-Configured in standalone mode on Proxmox. UPS confirmed reachable via `lsusb` and `upsc` before software configuration. Verified `ups.status: OL` (on line).
+Configured in standalone mode. Verified working: `ups.status: OL` confirmed via `upsc`.
 
 ---
 
 ## Security Hardening
 
-Security is applied as defense-in-depth across the stack. The threat model is a home network — no internet-facing services — but hardening is applied as if the network boundary could be crossed, because it sometimes can be (compromised LAN device, vulnerable IoT device, etc.).
+The threat model here is a home network with no internet-facing services. That said, hardening is applied as if the LAN could be compromised, because a vulnerable IoT device or misconfigured guest could realistically get there.
 
-### Network Perimeter
+### Network
 
-- **No ports forwarded from the internet.** All remote access exclusively through Tailscale. The attack surface visible from the internet is zero.
-- **Tailscale ACLs** segment the tailnet by device role:
-  - `tag:admin` (laptops, control node): full access to all infrastructure
-  - `tag:server` (VMs): unrestricted inter-server communication for Netdata streaming, Ansible SSH, DNS
-  - `tag:personal` (phone): web UI access only (ports 80, 443, 3001, 9443, 19999, 8006) — no SSH
-  - Entertainment devices (Apple TV): no access to infrastructure
+- No ports are forwarded from the internet. All remote access goes through Tailscale.
+- Tailscale ACLs are scoped by device role:
+  - `tag:admin` (laptops, control node): full access to everything
+  - `tag:server` (VMs): open inter-server access for Netdata streaming, Ansible SSH, and DNS
+  - `tag:personal` (phone): web UIs only (ports 80, 443, 3001, 9443, 19999, 8006), no SSH
+  - Entertainment devices (Apple TV): no infrastructure access
 
 ### Host Hardening (all managed hosts)
 
-- Root SSH login disabled (`PermitRootLogin no`)
-- Password authentication disabled (`PasswordAuthentication no`) — SSH key authentication only
-- Non-root admin users with scoped sudo
-- UFW firewall active on all Ubuntu hosts:
-  - Default policy: deny incoming, allow outgoing
-  - Allowed inbound: LAN subnet (`192.168.1.0/24`), Tailscale subnet (`100.64.0.0/10`)
-- Unattended-upgrades configured for automatic security patching on all Ubuntu hosts
+- Root SSH login disabled
+- Password auth disabled; SSH key authentication only
+- UFW on all Ubuntu hosts, default-deny with explicit allow rules for LAN (`192.168.1.0/24`) and Tailscale (`100.64.0.0/10`)
+- Unattended-upgrades running on all Ubuntu hosts
 
-### Docker-Specific
+### Docker
 
-- Docker's iptables management disabled (`{"iptables": false}` in `daemon.json`) to prevent Docker from bypassing UFW rules — a well-known default behavior that silently exposes container ports regardless of firewall state
-- Signal CLI API container not exposed externally; accessed only from Kuma on the same host via LAN IP
+- Docker's built-in iptables management is disabled (`{"iptables": false}` in `daemon.json`). By default, Docker bypasses UFW and exposes container ports regardless of your firewall rules. This fixes that.
+- Signal CLI API is not reachable externally; Kuma talks to it over the LAN IP only.
 
 ### Proxmox
 
-- TOTP two-factor authentication on web UI admin account
-- NUT provides hardware-level protection against ungraceful shutdown
+- TOTP 2FA on the web UI
 
 ### Secrets
 
-- Ansible-vault encrypts sensitive values at rest in the repository
-- SSH private keys never leave their originating host
-- All services use unique passwords; no shared credentials across services
+- Ansible-vault for all sensitive values in the repo
+- SSH keys never leave their originating host
+- Unique passwords per service; no shared credentials
 
 ---
 
@@ -209,24 +205,24 @@ homelab/
 
 ## What I Would Do Differently
 
-- **Netdata before Ansible, not instead of.** Setting up streaming manually first, then codifying it in Ansible, meant debugging both the service and the automation simultaneously. Manual setup → verify → automate is a cleaner sequence.
-- **Separate API keys from the start.** Used a shared Netdata streaming API key across children initially. Netdata v2 silently rejects duplicate key connections. Per-child unique keys should be the default, not a fix.
-- **UFW before Docker.** Enabling UFW on a Docker host without first disabling Docker's iptables management creates a false sense of security — Docker bypasses UFW silently. The correct order is: configure daemon.json → restart Docker → enable UFW.
-- **Cloud-init for VM provisioning.** Initial VM setup used the interactive Ubuntu installer, which had persistent keyboard input issues in Proxmox's noVNC console. Cloud images with cloud-init are faster, more reproducible, and avoid the console entirely.
+- **Set up Netdata manually before touching Ansible.** I tried to automate it before I fully understood how the streaming config worked. That meant debugging the service and the automation at the same time, which made both harder. The right sequence is: get it working by hand, then automate it.
+- **Use unique API keys from the start.** I started with a shared key across all children. Netdata v2 silently rejects duplicate connections, so it just didn't work with no useful error. Should have been unique per child from day one.
+- **Disable Docker's iptables before enabling UFW.** I turned on UFW first and assumed my firewall rules were working. They weren't. Docker had already punched holes through iptables and was exposing container ports. The correct order: set `daemon.json` first, restart Docker, then enable UFW.
+- **Use cloud-init from the beginning.** My first VMs used the interactive installer, which has a known Shift key bug in Proxmox's noVNC console. Cloud-init images skip the console entirely and are faster and more reproducible anyway.
 
 ---
 
 ## Roadmap
 
-- [ ] pfSense for network segmentation (blocked on managed switch for 802.1Q VLAN trunking via single NIC)
-- [ ] TrueNAS Scale on UGREEN DXP4800 Plus; RAID-Z2 across 4×10TB, 32GB RAM upgrade
-- [ ] 3-2-1 backup strategy: primary on TrueNAS, off-site to Synology, cloud cold storage
-- [ ] Immich for self-hosted photo library (replacing Google Photos)
-- [ ] Nextcloud for self-hosted file storage
-- [ ] Caddy reverse proxy for TLS termination
-- [ ] Prometheus + Grafana observability stack
-- [ ] Wazuh SIEM for on-prem security event pipeline
-- [ ] Azure homelab projects: Sentinel, Defender for Cloud, Terraform/Bicep IaC
+- [ ] pfSense with VLAN segmentation (blocked on getting a managed switch that supports 802.1Q trunking)
+- [ ] TrueNAS Scale on UGREEN DXP4800 Plus; RAID-Z2 across 4x10TB, 32GB RAM
+- [ ] 3-2-1 backup strategy: TrueNAS as primary, Synology off-site, cold cloud storage
+- [ ] Immich for self-hosted photos (replacing Google Photos)
+- [ ] Nextcloud for file storage
+- [ ] Caddy as a reverse proxy for internal TLS termination
+- [ ] Prometheus + Grafana for a proper observability stack
+- [ ] Wazuh SIEM for security event monitoring
+- [ ] Azure projects: Sentinel, Defender for Cloud, Terraform/Bicep IaC
 - [ ] Complete NUT live failover test
 - [ ] Ansible roles for remaining services
 
